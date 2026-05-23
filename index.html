@@ -19,12 +19,12 @@
 
 <div class="container">
     <h2>📷 Sistem Kamera CCTV</h2>
-    <p>Browser memblokir kamera otomatis. Klik tombol di bawah untuk menyalakan!</p>
+    <p>Klik tombol di bawah untuk menyalakan kamera.</p>
     
-    <button id="btnStart">🟢 NYALAKAN KAMERA & SISTEM ALARM</button>
+    <button id="btnStart">🟢 NYALAKAN KAMERA & SISTEM</button>
     
     <div id="cctvArea" style="display: none;">
-        <div class="status" id="statusInfo">Menyiapkan Kamera...</div><br>
+        <div class="status" id="statusInfo">Meminta izin kamera...</div><br>
         <video id="videoKamera" autoplay muted playsinline></video>
     </div>
 </div>
@@ -49,25 +49,25 @@
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if(audioCtx.state === 'suspended') audioCtx.resume();
 
-        // Menggunakan STUN Server agar tembus jaringan lokal
-        peer = new Peer('cctv-kamar-unik-9988', {
-            config: { 'iceServers': [{ urls: 'stun:stun.l.google.com:19302' }] }
-        });
-
-        peer.on('open', (id) => {
-            statusInfo.innerText = "⏳ Kamera Aktif. Menunggu HP Pemantau...";
-            mulaiKamera();
-        });
-    });
-
-    function mulaiKamera() {
+        // FIX FATAL: Minta izin kamera DULU. Jangan mulai PeerJS kalau kamera belum nyala.
         navigator.mediaDevices.getUserMedia({ video: true, audio: true })
             .then((stream) => {
                 videoKamera.srcObject = stream;
+                statusInfo.innerText = "⏳ Kamera Siap. Menghubungkan ke server...";
 
+                // MULAI PEERJS SETELAH KAMERA NYALA
+                peer = new Peer('cctv-anti-gagal-123', {
+                    config: { 'iceServers': [{ urls: 'stun:stun.l.google.com:19302' }] }
+                });
+
+                peer.on('open', (id) => {
+                    statusInfo.innerText = "🟢 Siap! Menunggu HP Pemantau...";
+                });
+
+                // Terima panggilan dari HP
                 peer.on('call', (call) => {
-                    statusInfo.innerText = "🟢 Pemantau Sedang Menonton";
-                    call.answer(stream);
+                    statusInfo.innerText = "🔴 Pemantau Sedang Menonton";
+                    call.answer(stream); // Kirim stream yang SUDAH PASTI siap
                     
                     call.on('stream', (suaraDariHP) => {
                         const audioRemote = new Audio();
@@ -76,6 +76,7 @@
                     });
                 });
 
+                // Terima jalur data (Alarm)
                 peer.on('connection', (conn) => {
                     conn.on('data', (data) => {
                         if (data === 'ALARM_ON') jalankanSiren();
@@ -87,7 +88,7 @@
                 statusInfo.innerText = "🔴 Gagal! Izinkan akses kamera di browser.";
                 console.error(err);
             });
-    }
+    });
 
     function jalankanSiren() {
         if (isSirenPlaying) return;
@@ -118,7 +119,7 @@
         if (!isSirenPlaying) return;
         isSirenPlaying = false;
         statusInfo.classList.remove('alarm-active');
-        statusInfo.innerText = "🟢 Pemantau Sedang Menonton";
+        statusInfo.innerText = "🔴 Pemantau Sedang Menonton";
 
         clearInterval(sirenInterval);
         if (oscillator) {
