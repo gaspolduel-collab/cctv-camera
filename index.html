@@ -25,7 +25,6 @@
     
     <div id="cctvArea" style="display: none;">
         <div class="status" id="statusInfo">Menyiapkan Kamera...</div><br>
-        <!-- WAJIB Muted agar suara dari mic HP tidak feedback ke mic laptop sendiri -->
         <video id="videoKamera" autoplay muted playsinline></video>
     </div>
 </div>
@@ -43,17 +42,18 @@
     let sirenInterval;
     let isSirenPlaying = false;
 
-    // TOMBOL WAJIB DIKLIK UNTUK MEMBUKA IZIN BROWSER
     btnStart.addEventListener('click', () => {
         btnStart.style.display = 'none';
         cctvArea.style.display = 'block';
 
-        // 1. Buka Gembok AudioContext untuk Alarm
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if(audioCtx.state === 'suspended') audioCtx.resume();
 
-        // 2. Mulai PeerJS
-        peer = new Peer('cctv-laptop-rahasia-6767');
+        // Menggunakan STUN Server agar tembus jaringan lokal
+        peer = new Peer('cctv-kamar-unik-9988', {
+            config: { 'iceServers': [{ urls: 'stun:stun.l.google.com:19302' }] }
+        });
+
         peer.on('open', (id) => {
             statusInfo.innerText = "⏳ Kamera Aktif. Menunggu HP Pemantau...";
             mulaiKamera();
@@ -69,11 +69,10 @@
                     statusInfo.innerText = "🟢 Pemantau Sedang Menonton";
                     call.answer(stream);
                     
-                    // Menerima suara dari HP
                     call.on('stream', (suaraDariHP) => {
                         const audioRemote = new Audio();
                         audioRemote.srcObject = suaraDariHP;
-                        audioRemote.play();
+                        audioRemote.play().catch(e => console.log(e));
                     });
                 });
 
@@ -98,7 +97,7 @@
 
         oscillator = audioCtx.createOscillator();
         gainNode = audioCtx.createGain();
-        oscillator.type = 'square'; // Suara lebih keras dan kasar
+        oscillator.type = 'square';
         
         let naik = true;
         sirenInterval = setInterval(() => {
