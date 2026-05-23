@@ -19,8 +19,6 @@
 
 <div class="container">
     <h2>📷 Sistem Kamera CCTV</h2>
-    <p>Klik tombol di bawah untuk menyalakan kamera.</p>
-    
     <button id="btnStart">🟢 NYALAKAN KAMERA & SISTEM</button>
     
     <div id="cctvArea" style="display: none;">
@@ -30,6 +28,9 @@
 </div>
 
 <script>
+    // ID WAJIB SAMA DENGAN PEMANTAU
+    const ID_KONEKSI = 'cctv-pribadi-final-999'; 
+
     const statusInfo = document.getElementById('statusInfo');
     const videoKamera = document.getElementById('videoKamera');
     const btnStart = document.getElementById('btnStart');
@@ -49,14 +50,12 @@
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if(audioCtx.state === 'suspended') audioCtx.resume();
 
-        // FIX FATAL: Minta izin kamera DULU. Jangan mulai PeerJS kalau kamera belum nyala.
         navigator.mediaDevices.getUserMedia({ video: true, audio: true })
             .then((stream) => {
                 videoKamera.srcObject = stream;
-                statusInfo.innerText = "⏳ Kamera Siap. Menghubungkan ke server...";
+                statusInfo.innerText = "⏳ Kamera Nyala. Membuat Server...";
 
-                // MULAI PEERJS SETELAH KAMERA NYALA
-                peer = new Peer('cctv-anti-gagal-123', {
+                peer = new Peer(ID_KONEKSI, {
                     config: { 'iceServers': [{ urls: 'stun:stun.l.google.com:19302' }] }
                 });
 
@@ -64,19 +63,17 @@
                     statusInfo.innerText = "🟢 Siap! Menunggu HP Pemantau...";
                 });
 
-                // Terima panggilan dari HP
                 peer.on('call', (call) => {
                     statusInfo.innerText = "🔴 Pemantau Sedang Menonton";
-                    call.answer(stream); // Kirim stream yang SUDAH PASTI siap
+                    call.answer(stream);
                     
                     call.on('stream', (suaraDariHP) => {
                         const audioRemote = new Audio();
                         audioRemote.srcObject = suaraDariHP;
-                        audioRemote.play().catch(e => console.log(e));
+                        audioRemote.play().catch(e => console.log("Audio play error:", e));
                     });
                 });
 
-                // Terima jalur data (Alarm)
                 peer.on('connection', (conn) => {
                     conn.on('data', (data) => {
                         if (data === 'ALARM_ON') jalankanSiren();
@@ -85,8 +82,7 @@
                 });
             })
             .catch((err) => {
-                statusInfo.innerText = "🔴 Gagal! Izinkan akses kamera di browser.";
-                console.error(err);
+                statusInfo.innerText = "🔴 Gagal! Izinkan akses kamera browser.";
             });
     });
 
@@ -128,6 +124,5 @@
         }
     }
 </script>
-
 </body>
 </html>
