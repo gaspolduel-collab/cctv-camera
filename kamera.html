@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCTV Kamera (Laptop)</title>
+    <!-- Memuat library PeerJS -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #222; color: white; }
+        video { background: black; border-radius: 8px; width: 80%; max-width: 600px; margin-top: 20px; }
+        .status { padding: 10px; background: #444; border-radius: 5px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+    <h2>Kamera CCTV</h2>
+    <div class="status" id="statusInfo">Menginisialisasi sistem...</div>
+    <br>
+    <!-- Atribut 'muted' wajib ada agar tidak terjadi suara bergema (feedback) di laptop -->
+    <video id="videoKamera" autoplay muted playsinline></video>
+
+    <script>
+        const statusInfo = document.getElementById('statusInfo');
+        const videoKamera = document.getElementById('videoKamera');
+
+        // Kita buat ID khusus agar pemantau mudah mencari kamera ini
+        const peer = new Peer('cctv-laptop-rahasia-123');
+
+        peer.on('open', (id) => {
+            statusInfo.innerText = "Kamera Online. Menunggu pemantau...";
+            mulaiKamera();
+        });
+
+        function mulaiKamera() {
+            // Meminta akses Webcam dan Mikrofon laptop
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                .then((stream) => {
+                    videoKamera.srcObject = stream;
+
+                    // Menunggu panggilan dari HP (Pemantau)
+                    peer.on('call', (call) => {
+                        statusInfo.innerText = "Pemantau Terhubung!";
+                        // Jawab panggilan dengan mengirimkan stream dari webcam
+                        call.answer(stream);
+                        
+                        // Menerima stream suara dari HP (jika fitur walkie-talkie dipakai)
+                        call.on('stream', (suaraDariHP) => {
+                            const audioRemote = new Audio();
+                            audioRemote.srcObject = suaraDariHP;
+                            audioRemote.play();
+                        });
+                    });
+                })
+                .catch((err) => {
+                    statusInfo.innerText = "Gagal akses kamera! Pastikan izin diberikan.";
+                    console.error(err);
+                });
+        }
+    </script>
+
+</body>
+</html>
